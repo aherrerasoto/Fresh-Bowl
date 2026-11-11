@@ -1,0 +1,9 @@
+fastapi[standard]
+sqlalchemy
+pytest
+httpx
+pwdlib[argon2]
+PyJWT
+strawberry-graphql[fastapi]
+hvac
+python-dotenv

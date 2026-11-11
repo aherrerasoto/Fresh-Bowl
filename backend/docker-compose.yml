@@ -1,0 +1,53 @@
+services:
+
+  vault:
+    image: hashicorp/vault:1.18
+    container_name: freshbowl-vault
+    restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    command: server -dev
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  vault-init:
+    image: hashicorp/vault:1.18
+    container_name: freshbowl-vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        vault kv put secret/freshbowl \
+          JWT_SECRET_KEY="FreshBowl-Docker-Development-Secret-Change-Me" \
+          DATABASE_URL="sqlite:////app/data/freshbowl.db" \
+          COOKIE_SECURE="false"
+
+  backend:
+    build: .
+    container_name: freshbowl-backend
+    restart: unless-stopped
+    depends_on:
+      vault-init:
+        condition: service_completed_successfully
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+    ports:
+      - "8000:8000"
+    volumes:
+      - freshbowl-data:/app/data
+
+volumes:
+  freshbowl-data:
